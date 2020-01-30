@@ -1,0 +1,23 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      Chess Game
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content padding>
+  <ion-grid *ngIf="showBoard">
+    <ion-row *ngFor="let chessRow of chessBoardObj; let r = index;">
+
+      <ion-col
+        [ngClass]="{'white-box':calcBoxColor(r,c),'black-box':calcBoxColor(r,c),'highlight-box': calcHL(r,c), 'goto-box': checkSteps(r,c)} "
+        *ngFor="let chessCol of chessRow; let c = index;">
+        <img src="{{getImageOnIndex(chessCol, r, c)}}"
+          (click)="restrictMoment(chessCol,r,c) ? $event.stopPropagation() : selectPawn(chessCol, r, c)" alt="no-img"
+          (error)="errorHandler($event, r ,c)">
+      </ion-col>
+
+    </ion-row>
+  </ion-grid>
+</ion-content>
