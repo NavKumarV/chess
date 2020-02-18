@@ -1,5 +1,5 @@
 # Basic Chess game developed in Ionic-4 Framework
-> ### Basic layout of the chess board and Pawns. Suggests all the possible moves that each pawn can take
+> ### 2 player Chess Game. Suggests all the possible moves that each pawn can take.
 ### 1. Install Ionic and cordova.
 > ### npm install --save cordova ionic
 
