@@ -2,6 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { ChessBoard } from '../models/chess-board/chess-board';
 import { WHITE_ROOK, WHITE_KNIGHT, WHITE_BISHOP, WHITE_KING, WHITE_QUEEN, WHITE_SOLDIER } from '../models/pawns/white-pawns';
 import { BLACK_ROOK, BLACK_BISHOP, BLACK_KNIGHT, BLACK_KING, BLACK_QUEEN, BLACK_SOLDIER } from '../models/pawns/black-pawns';
+import { PawnInterface } from '../models/interfaces/game-interfaces';
+import { AlertController } from '@ionic/angular';
 
 @Component({
   selector: 'app-home',
@@ -13,11 +15,12 @@ export class HomePage implements OnInit {
   showBoard = false;
   cIndex = -1;
   rIndex = -1;
-  selectedPawn: any;
+  selectedPawn: PawnInterface | null;
   pawnSteps = [];
-  chessBoardObj = ChessBoard;
+  chessBoardObj: any;
+  kingsCoOrdinate = { whiteKing: { row: 0, col: 3 }, blackKing: { row: 7, col: 3 } };
 
-  constructor() { }
+  constructor(private alertCtrl: AlertController) { }
 
   ngOnInit() {
     this.initilizeBoard();
@@ -25,6 +28,7 @@ export class HomePage implements OnInit {
 
   // Initilize the chess board
   async initilizeBoard() {
+    this.chessBoardObj = ChessBoard.clearBoard;
     await this.initilizeWhiteKingdom();
     await this.initilizeBlackKingdom();
     this.showBoard = true;
@@ -63,7 +67,6 @@ export class HomePage implements OnInit {
     this.chessBoardObj[7][5] = { ...BLACK_BISHOP };
     this.chessBoardObj[7][6] = { ...BLACK_KNIGHT };
     this.chessBoardObj[7][7] = { ...BLACK_ROOK };
-
     this.initilizeBlackSoldiers();
   }
 
@@ -77,7 +80,8 @@ export class HomePage implements OnInit {
     console.log(this.chessBoardObj);
   }
 
-  restrictMoment(chessCol, r, c) {
+  restrictMoment(chessCol: PawnInterface | null, r, c) {
+    console.log(chessCol, r, c);
     // Blocks entire team based on Turns
     if (!this.selectedPawn) {
       if (chessCol && (chessCol.team === this.playerTurn)) {
@@ -90,7 +94,7 @@ export class HomePage implements OnInit {
       return false;
     }
     // Blocks all steps except possible paths.
-    if (this.cIndex  !== -1 && this.rIndex  !== -1) {
+    if (this.cIndex !== -1 && this.rIndex !== -1) {
       for (let count = 0; count < this.pawnSteps.length; count++) {
         if ((r === this.pawnSteps[count].r) && (c === this.pawnSteps[count].c)) {
           return false;
@@ -131,22 +135,35 @@ export class HomePage implements OnInit {
   }
 
   // On select of Pawn
-  selectPawn(chessCol, r, c) {
+  selectPawn(chessCol: PawnInterface | null, r, c) {
+    console.log(this.chessBoardObj);
     this.pawnSteps = [];
-    if (this.cIndex  !== -1 && this.rIndex  !== -1) {
+    if (this.cIndex !== -1 && this.rIndex !== -1) {
       if (chessCol && this.selectedPawn && chessCol.team === this.selectedPawn.team) {
         this.selectedPawn = chessCol; this.cIndex = c; this.rIndex = r;
         this.checkPawnConditions(chessCol, r, c);
       } else {
+
+        // Checks the winner of the game.
+        if (this.chessBoardObj[r][c] && this.chessBoardObj[r][c].name === 'KING') {
+          const winnerTeam = this.selectedPawn.team;
+          alert(winnerTeam + ' player wins.');
+          return;
+        }
+
         this.chessBoardObj[this.rIndex][this.cIndex] = null;
         this.chessBoardObj[r][c] = this.selectedPawn; this.cIndex = -1; this.rIndex = -1;
         this.pawnSteps = [];
-        if (this.playerTurn === 'white') {
-          this.playerTurn = 'black';
-        } else {
-          this.playerTurn = 'white';
-        }
+        this.playerTurn = this.playerTurn === 'white' ? 'black' : 'white';
         this.selectedPawn = null;
+
+        // Evolve the soldier at end of the line.
+        if (r === 0 && this.chessBoardObj[r][c].name === 'SOLDIER' && this.chessBoardObj[r][c].team === 'black') {
+          this.chooseSoldierEvolution('black', r, c);
+        }
+        if (r === 7 && this.chessBoardObj[r][c].name === 'SOLDIER' && this.chessBoardObj[r][c].team === 'white') {
+          this.chooseSoldierEvolution('white', r, c);
+        }
       }
     } else if (chessCol) {
       this.selectedPawn = chessCol; this.cIndex = c; this.rIndex = r;
@@ -227,7 +244,7 @@ export class HomePage implements OnInit {
   }
 
   // Checks condition for KING
-  checkConditionKing(chessCol, r, c) {
+  checkConditionKing(chessCol: PawnInterface | null, r, c) {
     const r1 = r + 1, r2 = r - 1;
     const c1 = c + 1, c2 = c - 1;
     if ((r1 < 8) && (c1 < 8)) { this.pushOnIndividualCondition(chessCol, r1, c1); }
@@ -238,6 +255,9 @@ export class HomePage implements OnInit {
     if ((r2 >= 0)) { this.pushOnIndividualCondition(chessCol, r2, c); }
     if ((c1 < 8)) { this.pushOnIndividualCondition(chessCol, r, c1); }
     if ((c2 >= 0)) { this.pushOnIndividualCondition(chessCol, r, c2); }
+    if (chessCol && this.selectedPawn && chessCol.team === this.selectedPawn.team) {
+
+    }
   }
 
   // Based on Condition data will be pushed for ALL
@@ -253,7 +273,7 @@ export class HomePage implements OnInit {
 
   // Check the TEAM of adjacent pawns
   breakCondition(chessCol, r, c) {
-    if (this.chessBoardObj[r][c] && this.chessBoardObj[r][c].team  !== chessCol.team) {
+    if (this.chessBoardObj[r][c] && this.chessBoardObj[r][c].team !== chessCol.team) {
       this.pawnSteps.push({ r, c });
     }
   }
@@ -267,13 +287,13 @@ export class HomePage implements OnInit {
         this.pawnSteps.push({ r: r + 2, c });
       }
     }
-    if ((r  !== 1) && (r + 1 < 8) && !this.chessBoardObj[r + 1][c]) {
+    if ((r !== 1) && (r + 1 < 8) && !this.chessBoardObj[r + 1][c]) {
       this.pawnSteps.push({ r: r + 1, c });
     }
-    if ((r + 1 < 8) && (c + 1 < 8) && this.chessBoardObj[r + 1][c + 1] && (this.chessBoardObj[r + 1][c + 1].team  !== chessCol.team)) {
+    if ((r + 1 < 8) && (c + 1 < 8) && this.chessBoardObj[r + 1][c + 1] && (this.chessBoardObj[r + 1][c + 1].team !== chessCol.team)) {
       this.pawnSteps.push({ r: r + 1, c: c + 1 });
     }
-    if ((r + 1 < 8) && (c - 1 >= 0) && this.chessBoardObj[r + 1][c - 1] && (this.chessBoardObj[r + 1][c - 1].team  !== chessCol.team)) {
+    if ((r + 1 < 8) && (c - 1 >= 0) && this.chessBoardObj[r + 1][c - 1] && (this.chessBoardObj[r + 1][c - 1].team !== chessCol.team)) {
       this.pawnSteps.push({ r: r + 1, c: c - 1 });
     }
   }
@@ -287,14 +307,118 @@ export class HomePage implements OnInit {
         this.pawnSteps.push({ r: r - 1, c });
       }
     }
-    if ((r  !== 6) && (r - 1 >= 0) && !this.chessBoardObj[r - 1][c]) {
+    if ((r !== 6) && (r - 1 >= 0) && !this.chessBoardObj[r - 1][c]) {
       this.pawnSteps.push({ r: r - 1, c });
     }
-    if ((r - 1 >= 0) && (c + 1 < 8) && this.chessBoardObj[r - 1][c + 1] && (this.chessBoardObj[r - 1][c + 1].team  !== chessCol.team)) {
+    if ((r - 1 >= 0) && (c + 1 < 8) && this.chessBoardObj[r - 1][c + 1] && (this.chessBoardObj[r - 1][c + 1].team !== chessCol.team)) {
       this.pawnSteps.push({ r: r - 1, c: c + 1 });
     }
-    if ((r - 1 >= 0) && (c - 1 >= 0) && this.chessBoardObj[r - 1][c - 1] && (this.chessBoardObj[r - 1][c - 1].team  !== chessCol.team)) {
+    if ((r - 1 >= 0) && (c - 1 >= 0) && this.chessBoardObj[r - 1][c - 1] && (this.chessBoardObj[r - 1][c - 1].team !== chessCol.team)) {
       this.pawnSteps.push({ r: r - 1, c: c - 1 });
+    }
+  }
+
+  preCheckKingsSafety(selectedPawn: PawnInterface, chessCol: PawnInterface, r, c) {
+    // if (selectedPawn.team === 'white') {
+    //   // this.checkWhiteKingSafety()
+    //   for (let rowCount = 0; rowCount < 8; rowCount++) {
+    //     for (let colCount = 0; colCount < 8; colCount++) {
+    //       // this.checkPawnConditions(this.chessBoardObj);
+    //     }
+    //   }
+    // }
+  }
+
+  assignKingValues(r, c, team) {
+    if (team === 'white') {
+      this.kingsCoOrdinate.whiteKing.row = r;
+      this.kingsCoOrdinate.whiteKing.col = c;
+    } else if (team === 'black') {
+      this.kingsCoOrdinate.blackKing.row = r;
+      this.kingsCoOrdinate.blackKing.col = c;
+    }
+  }
+
+  async chooseSoldierEvolution(team, r, c) {
+    const myAlert = await this.alertCtrl.create({
+      header: 'Pawns',
+      subHeader: 'Select your pawn',
+      backdropDismiss: false,
+      buttons: [
+        {
+          text: 'OK',
+          handler: pawn => {
+            if (pawn) {
+              this.evolveSoldier(team, r, c, pawn);
+            }
+          },
+        }
+      ],
+      inputs: [
+        {
+          type: 'radio',
+          id: 'queen',
+          name: 'queen',
+          label: 'Queen',
+          value: 'queen',
+          checked: true
+        },
+        {
+          type: 'radio',
+          id: 'bishop',
+          name: 'bishop',
+          label: 'Bishop',
+          value: 'bishop',
+          checked: false
+        },
+        {
+          type: 'radio',
+          id: 'knight',
+          name: 'knight',
+          label: 'Knight',
+          value: 'knight',
+          checked: false
+        },
+        {
+          type: 'radio',
+          id: 'rook',
+          name: 'rook',
+          label: 'Rook',
+          value: 'rook',
+          checked: false
+        }
+      ]
+    });
+    await myAlert.present();
+  }
+
+  evolveSoldier(team, r, c, pawn) {
+    if (team === 'white') {
+      if (pawn === 'queen') {
+        this.chessBoardObj[r][c] = { ...WHITE_QUEEN };
+      }
+      if (pawn === 'bishop') {
+        this.chessBoardObj[r][c] = { ...WHITE_BISHOP };
+      }
+      if (pawn === 'knight') {
+        this.chessBoardObj[r][c] = { ...WHITE_KNIGHT };
+      }
+      if (pawn === 'rook') {
+        this.chessBoardObj[r][c] = { ...WHITE_ROOK };
+      }
+    } else {
+      if (pawn === 'queen') {
+        this.chessBoardObj[r][c] = { ...BLACK_QUEEN };
+      }
+      if (pawn === 'bishop') {
+        this.chessBoardObj[r][c] = { ...BLACK_BISHOP };
+      }
+      if (pawn === 'knight') {
+        this.chessBoardObj[r][c] = { ...BLACK_KNIGHT };
+      }
+      if (pawn === 'rook') {
+        this.chessBoardObj[r][c] = { ...BLACK_ROOK };
+      }
     }
   }
 
